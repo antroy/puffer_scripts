@@ -8,8 +8,9 @@
         }
     },
     "mods": [
-        "sodium",
-        "clumps",
-        "fabric-api"
+        {"slug": "sodium"},
+        {"slug": "clumps"},
+        {"slug": "fabric-api"},
+        {"slug": "configurable-sponges", "prefix": "Configurable_Sponges"}
     ]
 }

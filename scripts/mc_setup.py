@@ -17,6 +17,7 @@ class MinecraftConfiguration():
         self.base_url = base_url
         self.headers = headers
         self.args = self._args()
+        self.mods = {mod["slug"]: mod for mod in self.config["mods"]}
 
     def _args(self):
         parser = argparse.ArgumentParser(prog=sys.argv[0], description='Set up a minecraft instance')
@@ -73,25 +74,21 @@ class MinecraftConfiguration():
         print("Getting mod info from Modrinth...")
         downloads = {slug: self.get_url_for_latest_mod(slug, instance["version"]) for slug in mod_list}
 
-        # for slug, download in downloads.items():
-        #     print(f"Latest download for {slug}: {download["file"]}")
-        
         return downloads
 
-    def get_current_mods(self, instance, mod_list):
+    def get_current_mods(self, mod_list):
         minecraft_dir = self.instance_dir if self.config["is_server"] else self.instance_dir / ".minecraft"
         mod_dir = minecraft_dir / "mods"
 
         current_mods = list(mod_dir.glob("*.jar"))
         managed_mods = {}
-        for mod in mod_list:
+        for mod_slug, mod in mod_list.items():
             for mod_path in current_mods:
-                if mod_path.name.lower().startswith(mod):
-                    managed_mods[mod] = mod_path
+                mod_name = mod_path.name.lower()
+                prefix = mod.get("prefix", mod_slug)
+                if mod_name.startswith(prefix):
+                    managed_mods[mod_slug] = mod_path
                     break
-
-        # for mod, path in managed_mods.items():
-        #     print(f"Current {mod}:", path.name)
 
         return managed_mods
 
@@ -112,11 +109,10 @@ class MinecraftConfiguration():
 
         self.instance_dir =  self.instances_dir / instance_data["instance_dir"]
 
-        mods = self.config["mods"]
-        latest_plugins = self.latest_plugin_info(instance_data, mods)
-        current_plugins = self.get_current_mods(instance_data, mods)
+        latest_plugins = self.latest_plugin_info(instance_data, self.mods)
+        current_plugins = self.get_current_mods(self.mods)
 
-        for mod in mods:
+        for mod in self.mods:
             current = current_plugins[mod].name if mod in current_plugins else "Not found locally"
             latest = latest_plugins[mod]['file'] if mod in latest_plugins else "Not found in Modrinth"
 
