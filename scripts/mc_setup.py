@@ -60,8 +60,9 @@ class MinecraftConfiguration():
             print("%(title)s [%(project_type)s]: By '%(author)s'. Slug: %(slug)s" % hit)
 
     def list(self):
-        for mod in self.mod_dir.glob("*.jar"):
-            print(mod.name)
+        mod_names = [mod.name for mod in self.mod_dir.glob("*.jar")]
+        for mod in sorted(mod_names):
+            print(mod)
 
     def get_url_for_latest_mod(self, slug, version):
         query = f'loaders=[%22fabric%22]&game_versions=[%22{version}%22]'
