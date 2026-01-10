@@ -25,6 +25,7 @@ class MinecraftConfiguration():
         parser.add_argument("-v", "--version")
         parser.add_argument("-i", "--instance")
         parser.add_argument("-s", "--search", help="Search for the mod slug for a mod")
+        parser.add_argument("-l", "--list", action="store_true", default=False, help="List mods in instance")
 
         args = parser.parse_args()
 
@@ -58,6 +59,9 @@ class MinecraftConfiguration():
         for hit in data['hits']:
             print("%(title)s [%(project_type)s]: By '%(author)s'. Slug: %(slug)s" % hit)
 
+    def list(self):
+        for mod in self.mod_dir.glob("*.jar"):
+            print(mod.name)
 
     def get_url_for_latest_mod(self, slug, version):
         query = f'loaders=[%22fabric%22]&game_versions=[%22{version}%22]'
@@ -76,11 +80,9 @@ class MinecraftConfiguration():
 
         return downloads
 
-    def get_current_mods(self, mod_list):
-        minecraft_dir = self.instance_dir if self.config["is_server"] else self.instance_dir / ".minecraft"
-        mod_dir = minecraft_dir / "mods"
 
-        current_mods = list(mod_dir.glob("*.jar"))
+    def get_current_mods(self, mod_list):
+        current_mods = list(self.mod_dir.glob("*.jar"))
         managed_mods = {}
         for mod_slug, mod in mod_list.items():
             for mod_path in current_mods:
@@ -108,6 +110,13 @@ class MinecraftConfiguration():
             instance_data = self.get_instance_data()
 
         self.instance_dir =  self.instances_dir / instance_data["instance_dir"]
+        minecraft_dir = self.instance_dir if self.config["is_server"] else self.instance_dir / ".minecraft"
+        self.mod_dir = minecraft_dir / "mods"
+
+        if self.args.list:
+            self.list()
+            sys.exit(0)
+        
 
         latest_plugins = self.latest_plugin_info(instance_data, self.mods)
         current_plugins = self.get_current_mods(self.mods)
