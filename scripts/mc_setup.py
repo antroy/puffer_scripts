@@ -117,7 +117,15 @@ class MinecraftConfiguration():
         for mod in mods:
             current = current_plugins[mod].name if mod in current_plugins else "Not found locally"
             latest = latest_plugins[mod]['file'] if mod in latest_plugins else "Not found in Modrinth"
-            print(f"Mod {mod}: Current: {current}; Latest: {latest}")
+
+            if not current:
+                print(f"Mod for {mod} not found locally")
+            elif not latest:
+                print(f"Mod for {mod} not found in Modrinth")
+            elif current == latest:
+                print(f"{mod} is up to date!")
+            else:
+                print(f"Mod {mod} can be updated.\n  Current: {current}\n  Latest:  {latest}")
 
 
 if __name__ == "__main__":
