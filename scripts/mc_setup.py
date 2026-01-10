@@ -61,7 +61,7 @@ class MinecraftConfiguration():
 
     def list(self):
         mod_names = [mod.name for mod in self.mod_dir.glob("*.jar")]
-        for mod in sorted(mod_names):
+        for mod in sorted(mod_names, key=lambda m: m.lower()):
             print(mod)
 
     def get_url_for_latest_mod(self, slug, version):
