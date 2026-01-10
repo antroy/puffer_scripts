@@ -51,7 +51,9 @@ class MinecraftConfiguration():
     def search(self, project):
         path = f"search?query={project}"
         data = self.call_modrinth(path)
-        print("Slug:", data["hits"][0]["slug"])
+        if not data["hits"]:
+            print("No results")
+
         for hit in data['hits']:
             print("%(title)s [%(project_type)s]: By '%(author)s'. Slug: %(slug)s" % hit)
 
