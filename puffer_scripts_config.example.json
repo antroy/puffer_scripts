@@ -1,0 +1,15 @@
+{
+    "is_server": true,
+    "instances_dir": "~/servers",
+    "instances": {
+        "Puffer6": {
+            "instance_dir": "abc-123",
+            "version": "1.21.11"
+        }
+    },
+    "mods": [
+        "sodium",
+        "clumps",
+        "fabric-api"
+    ]
+}
