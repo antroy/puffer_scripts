@@ -26,6 +26,7 @@ class MinecraftConfiguration():
         parser.add_argument("-i", "--instance")
         parser.add_argument("-s", "--search", help="Search for the mod slug for a mod")
         parser.add_argument("-l", "--list", action="store_true", default=False, help="List mods in instance")
+        parser.add_argument("-x", "--exclude-managed", action="store_true", default=False, help="For List command, only show unmanaged mods (mods not in the puffer_scripts_config file)")
 
         args = parser.parse_args()
 
@@ -62,7 +63,8 @@ class MinecraftConfiguration():
     def list(self):
         mod_names = [mod.name for mod in self.mod_dir.glob("*.jar")]
         for mod in sorted(mod_names, key=lambda m: m.lower()):
-            print(mod)
+            if not self.args.exclude_managed or not any([mod.lower().startswith(m.get("prefix", m["slug"])) for m in self.mods.values()]):
+                print(mod)
 
     def get_url_for_latest_mod(self, slug, version):
         query = f'loaders=[%22fabric%22]&game_versions=[%22{version}%22]'
