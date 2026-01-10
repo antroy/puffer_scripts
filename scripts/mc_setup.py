@@ -68,11 +68,11 @@ class MinecraftConfiguration():
 
 
     def latest_plugin_info(self, instance, mod_list):
-        print("Getting mod info from Modrinth... Instance: ", instance)
+        print("Getting mod info from Modrinth...")
         downloads = {slug: self.get_url_for_latest_mod(slug, instance["version"]) for slug in mod_list}
 
-        for slug, download in downloads.items():
-            print(f"Latest download for {slug}: {download["file"]}")
+        # for slug, download in downloads.items():
+        #     print(f"Latest download for {slug}: {download["file"]}")
         
         return downloads
 
@@ -88,8 +88,8 @@ class MinecraftConfiguration():
                     managed_mods[mod] = mod_path
                     break
 
-        for mod, path in managed_mods.items():
-            print(f"Current {mod}:", path.name)
+        # for mod, path in managed_mods.items():
+        #     print(f"Current {mod}:", path.name)
 
         return managed_mods
 
