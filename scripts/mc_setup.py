@@ -115,8 +115,8 @@ class MinecraftConfiguration():
         current_plugins = self.get_current_mods(instance_data, mods)
 
         for mod in mods:
-            current = current_plugins[mod].name
-            latest = latest_plugins[mod]['file']
+            current = current_plugins[mod].name if mod in current_plugins else "Not found locally"
+            latest = latest_plugins[mod]['file'] if mod in latest_plugins else "Not found in Modrinth"
             print(f"Mod {mod}: Current: {current}; Latest: {latest}")
 
 
