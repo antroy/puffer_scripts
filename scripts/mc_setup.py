@@ -70,7 +70,7 @@ class MinecraftConfiguration():
         data = self.call_modrinth(path)
         hits = data.get("hits", [])
         if not hits:
-            print("No results")
+            print(f"No results for '{project}'")
 
         for i, hit in enumerate(hits):
             hit["index"] = i + 1
