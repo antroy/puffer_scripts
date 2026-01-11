@@ -94,7 +94,7 @@ class MinecraftConfiguration():
             for mod_path in current_mods:
                 mod_name = mod_path.name.lower()
                 prefix = mod.get("prefix", mod_slug)
-                if mod_name.startswith(prefix):
+                if mod_name.startswith(prefix.lower()):
                     managed_mods[mod_slug] = mod_path
                     break
 
@@ -136,7 +136,13 @@ class MinecraftConfiguration():
                 for update in updates:
                     (self.mod_dir / update["current"]).move(backup_folder / update["current"])
                     new_mod = self.mod_dir / update["latest"]
+                    print(f"Installing {update['latest']}")
                     urlretrieve(update["url"], new_mod)
+            if additions:
+                for addition in additions:
+                    new_mod = self.mod_dir / addition["latest"]
+                    print(f"Adding {addition['latest']}")
+                    urlretrieve(addition["url"], new_mod)
 
 
         
