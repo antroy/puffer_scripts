@@ -2,9 +2,11 @@
 
 from urllib.request import urlopen, Request, urlretrieve
 from urllib.parse import quote
-import argparse, json, re, os, shutil, sys
+import argparse, json, re, sys
 from pathlib import Path, PosixPath
 from datetime import datetime as dt
+from datetime import timedelta
+
 
 def _col(colour):
     templ = "\033[%sm%%s\033[0m" % colour if sys.stdout.isatty() else "%s"
@@ -22,6 +24,7 @@ class MinecraftConfiguration():
         base_url = "https://api.modrinth.com/v2"
         headers = {'User-Agent': 'antroy/puffer_scripts'}
         self.config_file = PosixPath("~/.puffer_scripts_config.json").expanduser()
+        self.cache_file = PosixPath("~/.puffer_modrinth_cache.json").expanduser()
         with open(self.config_file) as fh:
             self.config = json.load(fh)
 
@@ -30,6 +33,8 @@ class MinecraftConfiguration():
         self.headers = headers
         self.args = self._args()
         self.mods = {mod["slug"]: mod for mod in self.config["mods"]}
+
+        self.load_cache()
 
     def _args(self):
         parser = argparse.ArgumentParser(prog=sys.argv[0], description='Set up a minecraft instance')
@@ -46,6 +51,28 @@ class MinecraftConfiguration():
 
         return args
 
+    def load_cache(self):
+        self.cache = {}
+        if self.cache_file.exists():
+            self.cache = json.loads(self.cache_file.read_text())
+        modified = False
+        
+        for url_path in list(self.cache.keys()):
+            entry_date = dt.fromisoformat(self.cache[url_path]["created"])
+            one_day_ago = dt.now() - timedelta(days=1)
+            if entry_date < one_day_ago:
+                print(f"Clear cache for {url_path}")
+                del self.cache[url_path]
+                modified = True
+        
+        if modified:
+            self.write_cache()
+
+
+    def write_cache(self):
+        with open(self.cache_file, "w") as fh:
+            json.dump(self.cache, fh, indent=2)
+
     def get_instance_data(self):
         instances = self.config["instances"]
         instance_map = {i: instance for i, instance in enumerate(instances)}
@@ -57,12 +84,19 @@ class MinecraftConfiguration():
 
     def call_modrinth(self, path):
         url = f"{self.base_url}/{path}"
-        with urlopen(Request(url, headers=self.headers)) as fh:
-            try:
-                raw_data = fh.read()
-                return json.loads(raw_data)
-            except:
-                print(f"ERROR: [{url}]; {raw_data}")
+        # Add caching here
+        if path not in self.cache:
+            self.cache[path] = {"created": dt.now().isoformat()}
+            with urlopen(Request(url, headers=self.headers)) as fh:
+                try:
+                    raw_data = fh.read()
+                    self.cache[path]["data"] = json.loads(raw_data)
+                    self.write_cache()
+                except Exception as ex:
+                    print(f"ERROR: [{url}]; {str(ex)}")
+                    return {}
+
+        return self.cache[path]["data"]
 
 
     def search(self, project):
