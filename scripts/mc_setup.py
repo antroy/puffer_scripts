@@ -6,6 +6,17 @@ import argparse, json, re, os, shutil, sys
 from pathlib import Path
 from datetime import datetime as dt
 
+def _col(colour):
+    templ = "\033[%sm%%s\033[0m" % colour if sys.stdout.isatty() else "%s"
+    return lambda text: templ % text
+
+
+yellow = _col("33;1")
+blue = _col("34;1")
+green = _col("32;1")
+red = _col("31;1")
+
+
 class MinecraftConfiguration():
     def __init__(self):
         base_url = "https://api.modrinth.com/v2"
@@ -168,12 +179,12 @@ class MinecraftConfiguration():
             latest_url = latest['url']
 
             if not current:
-                print(f"Mod for {mod} not installed locally. Latest: {latest_file}")
+                print(red(f"Mod for {mod} not installed locally. Latest: {latest_file}"))
                 changes.append({"mod": mod, "action": "add", "latest": latest_file, "url": latest_url})
             elif current == latest_file:
-                print(f"{mod} is up to date!")
+                print(green(f"{mod} is up to date!"))
             else:
-                print(f"Mod {mod} can be updated.\n  Current: {current}\n  Latest:  {latest_file}")
+                print(yellow(f"Mod {mod} can be updated.\n  Current: {current}\n  Latest:  {latest_file}"))
                 changes.append({"mod": mod, "action": "update", "current": current, "latest": latest_file, "url": latest_url})
 
         return changes
