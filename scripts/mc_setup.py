@@ -4,6 +4,7 @@ from urllib.request import urlopen, Request, urlretrieve
 from urllib.parse import quote
 import argparse, json, re, os, shutil, sys
 from pathlib import Path
+from datetime import datetime as dt
 
 class MinecraftConfiguration():
     def __init__(self):
@@ -27,6 +28,7 @@ class MinecraftConfiguration():
         parser.add_argument("-s", "--search", help="Search for the mod slug for a mod")
         parser.add_argument("-l", "--list", action="store_true", default=False, help="List mods in instance")
         parser.add_argument("-x", "--exclude-managed", action="store_true", default=False, help="For List command, only show unmanaged mods (mods not in the puffer_scripts_config file)")
+        parser.add_argument("-u", "--update", action="store_true", default=False, help="Update the mods, backing up old mods in a timestamped folder")
 
         args = parser.parse_args()
 
@@ -62,6 +64,7 @@ class MinecraftConfiguration():
 
     def list(self):
         mod_names = [mod.name for mod in self.mod_dir.glob("*.jar")]
+        print(self.mod_dir)
         for mod in sorted(mod_names, key=lambda m: m.lower()):
             if not self.args.exclude_managed or not any([mod.lower().startswith(m.get("prefix", m["slug"])) for m in self.mods.values()]):
                 print(mod)
@@ -119,24 +122,50 @@ class MinecraftConfiguration():
         if self.args.list:
             self.list()
             sys.exit(0)
-        
 
+        changes = self.analyse_mods(instance_data) 
+
+        if self.args.update:
+            updates = [change for change in changes if change["action"] == "update"]
+            additions = [change for change in changes if change["action"] == "add"]
+
+            if updates:
+                backup_folder = self.mod_dir / dt.now().strftime("%y-%m-%y_%H-%M-%S")
+                print(f"Backing up old mods to {backup_folder}")
+                backup_folder.mkdir()
+                for update in updates:
+                    (self.mod_dir / update["current"]).move(backup_folder / update["current"])
+                    new_mod = self.mod_dir / update["latest"]
+                    urlretrieve(update["url"], new_mod)
+
+
+        
+    def analyse_mods(self, instance_data):
         latest_plugins = self.latest_plugin_info(instance_data, self.mods)
         current_plugins = self.get_current_mods(self.mods)
+        changes = []
 
         for mod in self.mods:
-            current = current_plugins[mod].name if mod in current_plugins else "Not found locally"
-            latest = latest_plugins[mod]['file'] if mod in latest_plugins else "Not found in Modrinth"
+            current = current_plugins[mod].name if mod in current_plugins else None
+            latest = latest_plugins[mod] if mod in latest_plugins else None
+
+            if not latest:
+                print(f"Mod for {mod} not found in Modrinth")
+                continue
+
+            latest_file = latest['file']
+            latest_url = latest['url']
 
             if not current:
                 print(f"Mod for {mod} not found locally")
-            elif not latest:
-                print(f"Mod for {mod} not found in Modrinth")
-            elif current == latest:
+                changes.append({"mod": mod, "action": "add", "latest": latest_file, "url": latest_url})
+            elif current == latest_file:
                 print(f"{mod} is up to date!")
             else:
-                print(f"Mod {mod} can be updated.\n  Current: {current}\n  Latest:  {latest}")
+                print(f"Mod {mod} can be updated.\n  Current: {current}\n  Latest:  {latest_file}")
+                changes.append({"mod": mod, "action": "update", "current": current, "latest": latest_file, "url": latest_url})
 
+        return changes
 
 if __name__ == "__main__":
     minecraft_config = MinecraftConfiguration()
