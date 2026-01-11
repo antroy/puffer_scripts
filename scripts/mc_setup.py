@@ -207,7 +207,7 @@ class MinecraftConfiguration():
         mods_to_add_to_config = []
 
         for mod in unmanaged_mods:
-            m = re.match(r"(.*?)(?:-fabric)?-\d+(?:\.\d+)+.*\.jar", mod.name)
+            m = re.match(r"(.*?)(?:-fabric)?-v?\d+(?:\.\d+)+.*\.jar", mod.name)
             if m:
                 search_term = m[1]
                 results = self.search(quote(search_term))
