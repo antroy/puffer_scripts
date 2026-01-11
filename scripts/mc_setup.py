@@ -126,24 +126,29 @@ class MinecraftConfiguration():
         changes = self.analyse_mods(instance_data) 
 
         if self.args.update:
-            updates = [change for change in changes if change["action"] == "update"]
-            additions = [change for change in changes if change["action"] == "add"]
+            self.install_updates(changes)
 
-            if updates:
-                backup_folder = self.mod_dir / dt.now().strftime("%y-%m-%y_%H-%M-%S")
-                print(f"Backing up old mods to {backup_folder}")
-                backup_folder.mkdir()
-                for update in updates:
-                    (self.mod_dir / update["current"]).move(backup_folder / update["current"])
-                    new_mod = self.mod_dir / update["latest"]
-                    print(f"Installing {update['latest']}")
-                    urlretrieve(update["url"], new_mod)
-            if additions:
-                for addition in additions:
-                    new_mod = self.mod_dir / addition["latest"]
-                    print(f"Adding {addition['latest']}")
-                    urlretrieve(addition["url"], new_mod)
+    def install_updates(self, changes):
+        print("-" * 80)
+        if not input("Proceed with update? ([y]/n)").strip().lower() == "y":
+            return
+        updates = [change for change in changes if change["action"] == "update"]
+        additions = [change for change in changes if change["action"] == "add"]
 
+        if updates:
+            backup_folder = self.mod_dir / dt.now().strftime("%y-%m-%y_%H-%M-%S")
+            print(f"Backing up old mods to {backup_folder}")
+            backup_folder.mkdir()
+            for update in updates:
+                (self.mod_dir / update["current"]).move(backup_folder / update["current"])
+                new_mod = self.mod_dir / update["latest"]
+                print(f"Installing {update['latest']}")
+                urlretrieve(update["url"], new_mod)
+        if additions:
+            for addition in additions:
+                new_mod = self.mod_dir / addition["latest"]
+                print(f"Adding {addition['latest']}")
+                urlretrieve(addition["url"], new_mod)
 
         
     def analyse_mods(self, instance_data):
@@ -163,7 +168,7 @@ class MinecraftConfiguration():
             latest_url = latest['url']
 
             if not current:
-                print(f"Mod for {mod} not found locally")
+                print(f"Mod for {mod} not installed locally. Latest: {latest_file}")
                 changes.append({"mod": mod, "action": "add", "latest": latest_file, "url": latest_url})
             elif current == latest_file:
                 print(f"{mod} is up to date!")
