@@ -61,7 +61,8 @@ class MinecraftConfiguration():
             entry_date = dt.fromisoformat(self.cache[url_path]["created"])
             one_day_ago = dt.now() - timedelta(days=1)
             if entry_date < one_day_ago:
-                print(f"Clear cache for {url_path}")
+                if not modified:
+                    print(f"Clearing old modrinth cache entries")
                 del self.cache[url_path]
                 modified = True
         
