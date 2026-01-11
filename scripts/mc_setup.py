@@ -3,7 +3,7 @@
 from urllib.request import urlopen, Request, urlretrieve
 from urllib.parse import quote
 import argparse, json, re, os, shutil, sys
-from pathlib import Path
+from pathlib import Path, PosixPath
 from datetime import datetime as dt
 
 def _col(colour):
@@ -21,8 +21,8 @@ class MinecraftConfiguration():
     def __init__(self):
         base_url = "https://api.modrinth.com/v2"
         headers = {'User-Agent': 'antroy/puffer_scripts'}
-        config_file = "~/.puffer_scripts_config.json"
-        with open(os.path.expanduser(config_file)) as fh:
+        self.config_file = PosixPath("~/.puffer_scripts_config.json").expanduser()
+        with open(self.config_file) as fh:
             self.config = json.load(fh)
 
         self.instances_dir = Path(self.config["instances_dir"])
@@ -40,6 +40,7 @@ class MinecraftConfiguration():
         parser.add_argument("-l", "--list", action="store_true", default=False, help="List mods in instance")
         parser.add_argument("-x", "--exclude-managed", action="store_true", default=False, help="For List command, only show unmanaged mods (mods not in the puffer_scripts_config file)")
         parser.add_argument("-u", "--update", action="store_true", default=False, help="Update the mods, backing up old mods in a timestamped folder")
+        parser.add_argument("--find-unmanaged", action="store_true", default=False, help="Look for mods in the mods folder that aren't managed in the config. Prompts to add the correct one from a Modrinth search")
 
         args = parser.parse_args()
 
@@ -67,11 +68,15 @@ class MinecraftConfiguration():
     def search(self, project):
         path = f"search?query={project}"
         data = self.call_modrinth(path)
-        if not data["hits"]:
+        hits = data.get("hits", [])
+        if not hits:
             print("No results")
 
-        for hit in data['hits']:
-            print("%(title)s [%(project_type)s]: By '%(author)s'. Slug: %(slug)s" % hit)
+        for i, hit in enumerate(hits):
+            hit["index"] = i + 1
+            print(f"%(index)2s) %(title)s [%(project_type)s]: By '%(author)s'. Slug: %(slug)s" % hit)
+        
+        return hits
 
     def list(self):
         mod_names = [mod.name for mod in self.mod_dir.glob("*.jar")]
@@ -98,10 +103,10 @@ class MinecraftConfiguration():
         return downloads
 
 
-    def get_current_mods(self, mod_list):
+    def get_current_mods(self):
         current_mods = list(self.mod_dir.glob("*.jar"))
         managed_mods = {}
-        for mod_slug, mod in mod_list.items():
+        for mod_slug, mod in self.mods.items():
             for mod_path in current_mods:
                 mod_name = mod_path.name.lower()
                 prefix = mod.get("prefix", mod_slug)
@@ -130,6 +135,10 @@ class MinecraftConfiguration():
         minecraft_dir = self.instance_dir if self.config["is_server"] else self.instance_dir / ".minecraft"
         self.mod_dir = minecraft_dir / "mods"
 
+        if self.args.find_unmanaged:
+            self.find_unmanaged()
+            sys.exit(0)
+        
         if self.args.list:
             self.list()
             sys.exit(0)
@@ -164,7 +173,7 @@ class MinecraftConfiguration():
         
     def analyse_mods(self, instance_data):
         latest_plugins = self.latest_plugin_info(instance_data, self.mods)
-        current_plugins = self.get_current_mods(self.mods)
+        current_plugins = self.get_current_mods()
         changes = []
 
         for mod in self.mods:
@@ -188,6 +197,41 @@ class MinecraftConfiguration():
                 changes.append({"mod": mod, "action": "update", "current": current, "latest": latest_file, "url": latest_url})
 
         return changes
+
+    
+    def find_unmanaged(self):
+        current_mods = list(self.mod_dir.glob("*.jar"))
+        managed_mods = self.get_current_mods()
+
+        unmanaged_mods = sorted(list(set(current_mods) - set(managed_mods.values())), key=lambda m: m.name.lower())
+        mods_to_add_to_config = []
+
+        for mod in unmanaged_mods:
+            m = re.match(r"(.*?)(?:-fabric)?-\d+(?:\.\d+)+.*\.jar", mod.name)
+            if m:
+                search_term = m[1]
+                results = self.search(quote(search_term))
+
+                if results:
+                    choice = input(yellow(f"\nChoose the correct mod for {mod.name}. Enter if no results are correct: ")).strip()
+                    if choice.isnumeric() and int(choice) > 0 and int(choice) <= len(results):
+                        result = results[int(choice) - 1]
+                        prefix = search_term if not search_term == result["slug"] else None
+                        mods_to_add_to_config.append({"slug": result["slug"]})
+                        if prefix:
+                            mods_to_add_to_config[-1]["prefix"] = prefix
+            else:
+                print(f"Cannot parse {mod}")
+        
+        self.update_config(mods_to_add_to_config)
+
+    def update_config(self, mods_to_add):
+        self.config["mods"].extend(mods_to_add)
+        self.config["mods"].sort(key=lambda mod: mod["slug"])
+
+        self.config_file.rename(Path(str(self.config_file) + ".bak"))
+        with open(self.config_file, "w") as fh:
+            json.dump(self.config, fh, indent=2)
 
 if __name__ == "__main__":
     minecraft_config = MinecraftConfiguration()
