@@ -32,9 +32,13 @@ class MinecraftConfiguration():
         self.base_url = base_url
         self.headers = headers
         self.args = self._args()
-        self.mods = {mod["slug"]: mod for mod in self.config["mods"]}
+        self.mods = self.config["mods"]
+        self.instance_data = None
 
         self.load_cache()
+
+    def mod_data(self, mod_slug):
+        return self.mods[mod_slug]
 
     def _args(self):
         parser = argparse.ArgumentParser(prog=sys.argv[0], description='Set up a minecraft instance')
@@ -74,13 +78,12 @@ class MinecraftConfiguration():
         with open(self.cache_file, "w") as fh:
             json.dump(self.cache, fh, indent=2)
 
-    def get_instance_data(self):
+    def get_instance(self):
         instances = self.config["instances"]
-        instance_map = {i: instance for i, instance in enumerate(instances)}
+        instance_name_map = {i: instance for i, instance in enumerate(instances)}
         for i, instance in enumerate(instances):
             print("%-2s) %s" % (i + 1, instance))
-
-        return instances[instance_map[int(input("Choose an instance:")) - 1]]
+        self.instance = instance_name_map[int(input("Choose an instance:")) - 1]
 
 
     def call_modrinth(self, path):
@@ -156,17 +159,16 @@ class MinecraftConfiguration():
             self.search(quote(self.args.search))
             sys.exit(0)
         
-        instance = self.args.instance
-        instance_data = None
-        if instance:
-            instance_data = self.config["instances"].get(instance)
-            if not instance_data:
-                print(f"No such instance '{instance_dir}'")
-                instance_data = self.get_instance_data()
-        else:
-            instance_data = self.get_instance_data()
+        self.instance = self.args.instance
+        if not self.instance in self.config["instances"]:
+            print(f"No such instance '{self.instance}'")
+            self.get_instance()
 
-        self.instance_dir =  self.instances_dir / instance_data["instance_dir"]
+        self.instance_data = self.config["instances"].get(self.instance)
+
+        self.mods = {k: v for k, v in self.config["mods"].items() if k in self.instance_data["mods"]}
+
+        self.instance_dir =  self.instances_dir / self.instance_data["instance_dir"]
         minecraft_dir = self.instance_dir if self.config["is_server"] else self.instance_dir / ".minecraft"
         self.mod_dir = minecraft_dir / "mods"
 
@@ -178,7 +180,7 @@ class MinecraftConfiguration():
             self.list()
             sys.exit(0)
 
-        changes = self.analyse_mods(instance_data) 
+        changes = self.analyse_mods(self.instance_data) 
 
         if self.args.update:
             self.install_updates(changes)
@@ -207,7 +209,7 @@ class MinecraftConfiguration():
 
         
     def analyse_mods(self, instance_data):
-        latest_plugins = self.latest_plugin_info(instance_data, self.mods)
+        latest_plugins = self.latest_plugin_info(instance_data, instance_data["mods"])
         current_plugins = self.get_current_mods()
         changes = []
 
@@ -239,7 +241,7 @@ class MinecraftConfiguration():
         managed_mods = self.get_current_mods()
 
         unmanaged_mods = sorted(list(set(current_mods) - set(managed_mods.values())), key=lambda m: m.name.lower())
-        mods_to_add_to_config = []
+        mods_to_add_to_config = {}
 
         for mod in unmanaged_mods:
             m = re.match(r"(.*?)(?:-fabric)?-v?\d+(?:\.\d+)+.*\.jar", mod.name)
@@ -252,17 +254,17 @@ class MinecraftConfiguration():
                     if choice.isnumeric() and int(choice) > 0 and int(choice) <= len(results):
                         result = results[int(choice) - 1]
                         prefix = search_term if not search_term == result["slug"] else None
-                        mods_to_add_to_config.append({"slug": result["slug"]})
+                        mods_to_add_to_config[result["slug"]] = {}
                         if prefix:
-                            mods_to_add_to_config[-1]["prefix"] = prefix
+                            mods_to_add_to_config[result["slug"]]["prefix"] = prefix
             else:
                 print(f"Cannot parse {mod}")
         
         self.update_config(mods_to_add_to_config)
 
     def update_config(self, mods_to_add):
-        self.config["mods"].extend(mods_to_add)
-        self.config["mods"].sort(key=lambda mod: mod["slug"])
+        self.config["mods"].update(mods_to_add)
+        self.config["instances"][self.instance]["mods"].extend(mods_to_add.keys())
 
         self.config_file.rename(Path(str(self.config_file) + ".bak"))
         with open(self.config_file, "w") as fh:

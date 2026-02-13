@@ -4,13 +4,14 @@
     "instances": {
         "Puffer6": {
             "instance_dir": "abc-123",
-            "version": "1.21.11"
+            "version": "1.21.11",
+            "mods": ["sodium", "clumps", "fabric-api", "configurable-sponges"]
         }
     },
-    "mods": [
-        {"slug": "sodium"},
-        {"slug": "clumps"},
-        {"slug": "fabric-api"},
-        {"slug": "configurable-sponges", "prefix": "Configurable_Sponges"}
-    ]
+    "mods": {
+        "sodium": {},
+        "clumps": {},
+        "fabric-api": {},
+        "configurable-sponges": {"prefix": "Configurable_Sponges"}
+    }
 }
