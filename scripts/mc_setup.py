@@ -88,7 +88,6 @@ class MinecraftConfiguration():
 
     def call_modrinth(self, path):
         url = f"{self.base_url}/{path}"
-        # Add caching here
         if path not in self.cache:
             self.cache[path] = {"created": dt.now().isoformat()}
             with urlopen(Request(url, headers=self.headers)) as fh:
@@ -134,9 +133,9 @@ class MinecraftConfiguration():
         return {"file": latest["filename"], "url": latest["url"]}
 
 
-    def latest_plugin_info(self, instance, mod_list):
+    def latest_plugin_info(self, mod_list):
         print("Getting mod info from Modrinth...")
-        downloads = {slug: self.get_url_for_latest_mod(slug, instance["version"]) for slug in mod_list}
+        downloads = {slug: self.get_url_for_latest_mod(slug, self.instance_data["version"]) for slug in mod_list}
 
         return downloads
 
@@ -161,7 +160,8 @@ class MinecraftConfiguration():
         
         self.instance = self.args.instance
         if not self.instance in self.config["instances"]:
-            print(f"No such instance '{self.instance}'")
+            if self.instance:
+                print(f"No such instance '{self.instance}'")
             self.get_instance()
 
         self.instance_data = self.config["instances"].get(self.instance)
@@ -180,7 +180,7 @@ class MinecraftConfiguration():
             self.list()
             sys.exit(0)
 
-        changes = self.analyse_mods(self.instance_data) 
+        changes = self.analyse_mods() 
 
         if self.args.update:
             self.install_updates(changes)
@@ -208,8 +208,8 @@ class MinecraftConfiguration():
                 urlretrieve(addition["url"], new_mod)
 
         
-    def analyse_mods(self, instance_data):
-        latest_plugins = self.latest_plugin_info(instance_data, instance_data["mods"])
+    def analyse_mods(self):
+        latest_plugins = self.latest_plugin_info(self.mods)
         current_plugins = self.get_current_mods()
         changes = []
 
