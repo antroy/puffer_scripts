@@ -2,7 +2,7 @@
 
 from urllib.request import urlopen, Request, urlretrieve
 from urllib.parse import quote
-import argparse, json, re, sys
+import argparse, json, re,os, sys
 from pathlib import Path, PosixPath
 from datetime import datetime as dt
 from datetime import timedelta
@@ -193,11 +193,11 @@ class MinecraftConfiguration():
         additions = [change for change in changes if change["action"] == "add"]
 
         if updates:
-            backup_folder = self.mod_dir / dt.now().strftime("%y-%m-%y_%H-%M-%S")
+            backup_folder = self.mod_dir / dt.now().strftime("%y-%m-%d_%H-%M-%S")
             print(f"Backing up old mods to {backup_folder}")
             backup_folder.mkdir()
             for update in updates:
-                (self.mod_dir / update["current"]).move(backup_folder / update["current"])
+                os.replace(self.mod_dir / update["current"], backup_folder / update["current"])
                 new_mod = self.mod_dir / update["latest"]
                 print(f"Installing {update['latest']}")
                 urlretrieve(update["url"], new_mod)
